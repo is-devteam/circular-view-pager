@@ -1,0 +1,7 @@
+<resources>
+  <string name="app_name">CircularViewPager</string>
+
+  <string name="hello_world">Hello world!</string>
+  <string name="action_settings">Settings</string>
+  <string name="current_page_indicator">We are currently on page %d</string>
+</resources>
