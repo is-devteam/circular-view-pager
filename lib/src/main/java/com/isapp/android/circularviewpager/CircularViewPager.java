@@ -323,6 +323,9 @@ public class CircularViewPager extends ViewGroup {
     setWillNotDraw(false);
     setDescendantFocusability(FOCUS_AFTER_DESCENDANTS);
     setFocusable(true);
+    if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.GINGERBREAD) {
+      setOverScrollMode(OVER_SCROLL_NEVER);
+    }
     final Context context = getContext();
     mScroller = new Scroller(context, sInterpolator);
     final ViewConfiguration configuration = ViewConfiguration.get(context);
@@ -467,10 +470,11 @@ public class CircularViewPager extends ViewGroup {
       setScrollingCacheEnabled(false);
       return;
     }
+    final int itemCount = mAdapter.getCount();
     if (item < 0) {
+      item = itemCount - 1;
+    } else if (item >= itemCount) {
       item = 0;
-    } else if (item >= mAdapter.getCount()) {
-      item = mAdapter.getCount() - 1;
     }
     final int pageLimit = mOffscreenPageLimit;
     if (item > (mCurItem + pageLimit) || item < (mCurItem - pageLimit)) {
@@ -493,7 +497,8 @@ public class CircularViewPager extends ViewGroup {
         mInternalPageChangeListener.onPageSelected(item);
       }
       requestLayout();
-    } else {
+    }
+    else {
       populate(item);
       scrollToItem(item, smoothScroll, velocity, dispatchSelected);
     }
@@ -822,6 +827,7 @@ public class CircularViewPager extends ViewGroup {
     populate(mCurItem);
   }
   void populate(int newCurrentItem) {
+    final int N = mAdapter.getCount();
     ItemInfo oldCurInfo = null;
     int focusDirection = View.FOCUS_FORWARD;
     if (mCurItem != newCurrentItem) {
@@ -837,7 +843,7 @@ public class CircularViewPager extends ViewGroup {
     // on creating views from the time the user releases their finger to
     // fling to a new position until we have finished the scroll to
     // that position, avoiding glitches from happening at that point.
-    if (mPopulatePending) {
+    if (mPopulatePending && (oldCurInfo == null || (mCurItem != 0 && oldCurInfo.position != N - 1) && (mCurItem != N - 1 && oldCurInfo.position != 0))) {
       if (DEBUG) Log.i(TAG, "populate is pending, skipping for now...");
       sortChildDrawingOrder();
       return;
@@ -850,9 +856,9 @@ public class CircularViewPager extends ViewGroup {
     }
     mAdapter.startUpdate(this);
     final int pageLimit = mOffscreenPageLimit;
-    final int startPos = Math.max(0, mCurItem - pageLimit);
-    final int N = mAdapter.getCount();
-    final int endPos = Math.min(N-1, mCurItem + pageLimit);
+    final int startPos = mCurItem - pageLimit < 0 ? Math.max(0, N + (mCurItem - pageLimit)) : Math.max(0, mCurItem - pageLimit);
+    final int endPos = mCurItem + pageLimit >= N ? Math.min(N-1, (mCurItem + pageLimit) - N) : Math.min(N-1, mCurItem + pageLimit);
+    final int windowSize = pageLimit * 2 + 1;
     if (N != mExpectedAdapterCount) {
       String resName;
       try {
@@ -872,8 +878,8 @@ public class CircularViewPager extends ViewGroup {
     ItemInfo curItem = null;
     for (curIndex = 0; curIndex < mItems.size(); curIndex++) {
       final ItemInfo ii = mItems.get(curIndex);
-      if (ii.position >= mCurItem) {
-        if (ii.position == mCurItem) curItem = ii;
+      if (ii.position == mCurItem) {
+        curItem = ii;
         break;
       }
     }
@@ -885,70 +891,87 @@ public class CircularViewPager extends ViewGroup {
     // If we have no current item we have no work to do.
     if (curItem != null) {
       float extraWidthLeft = 0.f;
-      int itemIndex = curIndex - 1;
-      ItemInfo ii = itemIndex >= 0 ? mItems.get(itemIndex) : null;
+      int itemIndex = curIndex - pageLimit;
+      if(itemIndex < 0) itemIndex = 0;
+      ItemInfo ii = itemIndex < mItems.size() ? mItems.get(itemIndex++) : null;
+      if(ii.position == mCurItem) ii = null;
       final int clientWidth = getClientWidth();
       final float leftWidthNeeded = clientWidth <= 0 ? 0 :
           2.f - curItem.widthFactor + (float) getPaddingLeft() / (float) clientWidth;
-      for (int pos = mCurItem - 1; pos >= 0; pos--) {
-        if (extraWidthLeft >= leftWidthNeeded && pos < startPos) {
-          if (ii == null) {
-            break;
-          }
-          if (pos == ii.position && !ii.scrolling) {
-            mItems.remove(itemIndex);
-            mAdapter.destroyItem(this, pos, ii.object);
-            if (DEBUG) {
-              Log.i(TAG, "populate() - destroyItem() with pos: " + pos +
-                  " view: " + ((View) ii.object));
-            }
-            itemIndex--;
-            curIndex--;
-            ii = itemIndex >= 0 ? mItems.get(itemIndex) : null;
-          }
-        } else if (ii != null && pos == ii.position) {
-          extraWidthLeft += ii.widthFactor;
-          itemIndex--;
-          ii = itemIndex >= 0 ? mItems.get(itemIndex) : null;
-        } else {
-          ii = addNewItem(pos, itemIndex + 1);
-          extraWidthLeft += ii.widthFactor;
-          curIndex++;
-          ii = itemIndex >= 0 ? mItems.get(itemIndex) : null;
+
+      int leftPos = startPos;
+      while(leftPos != mCurItem && extraWidthLeft < leftWidthNeeded) {
+        if (ii != null) {
+          ii.position = leftPos;
         }
+        else {
+          int insertPos = curIndex - 1;
+          if(insertPos < 0) insertPos = 0;
+          ii = addNewItem(leftPos, insertPos);
+          curIndex++;
+          if(curIndex >= mItems.size()) curIndex = mItems.size() - 1;
+        }
+
+        extraWidthLeft += ii.widthFactor;
+        leftPos = leftPos + 1;
+        if(leftPos >= N) {
+          leftPos = 0;
+        }
+        ii = itemIndex < mItems.size() ? mItems.get(itemIndex++) : null;
       }
+
       float extraWidthRight = curItem.widthFactor;
-      itemIndex = curIndex + 1;
       if (extraWidthRight < 2.f) {
-        ii = itemIndex < mItems.size() ? mItems.get(itemIndex) : null;
+        itemIndex = curIndex + pageLimit;
+        if(itemIndex >= mItems.size()) itemIndex = mItems.size() - 1;
+        ii = itemIndex < mItems.size() ? mItems.get(itemIndex--) : null;
         final float rightWidthNeeded = clientWidth <= 0 ? 0 :
             (float) getPaddingRight() / (float) clientWidth + 2.f;
-        for (int pos = mCurItem + 1; pos < N; pos++) {
-          if (extraWidthRight >= rightWidthNeeded && pos > endPos) {
-            if (ii == null) {
-              break;
-            }
-            if (pos == ii.position && !ii.scrolling) {
-              mItems.remove(itemIndex);
-              mAdapter.destroyItem(this, pos, ii.object);
-              if (DEBUG) {
-                Log.i(TAG, "populate() - destroyItem() with pos: " + pos +
-                    " view: " + ((View) ii.object));
-              }
-              ii = itemIndex < mItems.size() ? mItems.get(itemIndex) : null;
-            }
-          } else if (ii != null && pos == ii.position) {
-            extraWidthRight += ii.widthFactor;
-            itemIndex++;
-            ii = itemIndex < mItems.size() ? mItems.get(itemIndex) : null;
-          } else {
-            ii = addNewItem(pos, itemIndex);
-            itemIndex++;
-            extraWidthRight += ii.widthFactor;
-            ii = itemIndex < mItems.size() ? mItems.get(itemIndex) : null;
+
+        int rightPos = endPos;
+        while(rightPos != mCurItem && extraWidthRight < rightWidthNeeded) {
+          if(ii == null || rightPos != ii.position) {
+            ii = addNewItem(rightPos, curIndex + 1);
           }
+
+          extraWidthRight += ii.widthFactor;
+          rightPos = rightPos - 1;
+          if(rightPos < 0) {
+            rightPos = N - 1;
+          }
+          ii = itemIndex >= 0 && itemIndex < mItems.size() ? mItems.get(itemIndex--) : null;
         }
       }
+
+      int leftIndex = curIndex - pageLimit;
+      if(leftIndex < 0) leftIndex = 0;
+      int rightIndex = curIndex + pageLimit + 1;
+      if(rightIndex >= mItems.size()) rightIndex = 0;
+      while(leftIndex != rightIndex) {
+        ii = rightIndex >= 0 && rightIndex < mItems.size() ? mItems.get(rightIndex) : null;
+        if (ii != null) {
+          mItems.remove(rightIndex);
+          // if there are the same amount or less items in the pager than are kept in mItems
+          // don't destroy the item we removed, because there IS another reference to it in mItems
+          // that will not be removed. If we destroy one reference to it, the other might become unusable.
+          if(mAdapter.getCount() > windowSize) {
+            mAdapter.destroyItem(this, ii.position, ii.object);
+          }
+          if(rightIndex < curIndex) {
+            curIndex--;
+            if(curIndex < 0) curIndex = 0;
+          }
+
+          if (DEBUG) {
+            Log.i(TAG, "populate() - destroyItem() with pos: " + rightIndex +
+                " view: " + ((View) ii.object));
+          }
+        }
+
+        rightIndex++;
+        if(rightIndex >= mItems.size()) rightIndex = 0;
+      }
+
       calculatePageOffsets(curItem, curIndex, oldCurInfo);
     }
     if (DEBUG) {
@@ -1015,7 +1038,7 @@ public class CircularViewPager extends ViewGroup {
     if (oldCurInfo != null) {
       final int oldCurPosition = oldCurInfo.position;
       // Base offsets off of oldCurInfo.
-      if (oldCurPosition < curItem.position) {
+      if ((oldCurPosition < curItem.position && oldCurPosition != 0 && curItem.position != N - 1) || oldCurPosition == N - 1 && curItem.position == 0) {
         int itemIndex = 0;
         ItemInfo ii = null;
         float offset = oldCurInfo.offset + oldCurInfo.widthFactor + marginOffset;
@@ -1035,7 +1058,7 @@ public class CircularViewPager extends ViewGroup {
           ii.offset = offset;
           offset += ii.widthFactor + marginOffset;
         }
-      } else if (oldCurPosition > curItem.position) {
+      } else if ((oldCurPosition > curItem.position && oldCurPosition != N - 1 && curItem.position != 0) || oldCurPosition == 0 && curItem.position == N -1) {
         int itemIndex = mItems.size() - 1;
         ItemInfo ii = null;
         float offset = oldCurInfo.offset;
@@ -1059,6 +1082,9 @@ public class CircularViewPager extends ViewGroup {
     }
     // Base all offsets off of curItem.
     final int itemCount = mItems.size();
+    final int pageLimit = mOffscreenPageLimit;
+    final int startPos = mCurItem - pageLimit < 0 ? Math.max(0, N + (mCurItem - pageLimit)) : Math.max(0, mCurItem - pageLimit);
+    final int endPos = mCurItem + pageLimit >= N ? Math.min(N-1, (mCurItem + pageLimit) - N) : Math.min(N-1, mCurItem + pageLimit);
     float offset = curItem.offset;
     int pos = curItem.position - 1;
     mFirstOffset = curItem.position == 0 ? curItem.offset : -Float.MAX_VALUE;
@@ -1072,7 +1098,7 @@ public class CircularViewPager extends ViewGroup {
       }
       offset -= ii.widthFactor + marginOffset;
       ii.offset = offset;
-      if (ii.position == 0) mFirstOffset = offset;
+      if (ii.position == startPos) mFirstOffset = offset;
     }
     offset = curItem.offset + curItem.widthFactor + marginOffset;
     pos = curItem.position + 1;
@@ -1082,7 +1108,7 @@ public class CircularViewPager extends ViewGroup {
       while (pos < ii.position) {
         offset += mAdapter.getPageWidth(pos++) + marginOffset;
       }
-      if (ii.position == N - 1) {
+      if (ii.position == endPos) {
         mLastOffset = offset + ii.widthFactor - 1;
       }
       ii.offset = offset;
@@ -1906,6 +1932,7 @@ public class CircularViewPager extends ViewGroup {
    *         This can be synthetic for a missing middle page; the 'object' field can be null.
    */
   private ItemInfo infoForCurrentScrollPosition() {
+    final int N = mAdapter.getCount();
     final int width = getClientWidth();
     final float scrollOffset = width > 0 ? (float) getScrollX() / width : 0;
     final float marginOffset = width > 0 ? (float) mPageMargin / width : 0;
@@ -1917,13 +1944,16 @@ public class CircularViewPager extends ViewGroup {
     for (int i = 0; i < mItems.size(); i++) {
       ItemInfo ii = mItems.get(i);
       float offset;
-      if (!first && ii.position != lastPos + 1) {
-        // Create a synthetic item for a missing page.
-        ii = mTempItem;
-        ii.offset = lastOffset + lastWidth + marginOffset;
-        ii.position = lastPos + 1;
-        ii.widthFactor = mAdapter.getPageWidth(ii.position);
-        i--;
+      if(!first) {
+        boolean missingPage = lastPos == N - 1 ? ii.position != 0 : ii.position != lastPos + 1;
+        if (missingPage) {
+          // Create a synthetic item for a missing page.
+          ii = mTempItem;
+          ii.offset = lastOffset + lastWidth + marginOffset;
+          ii.position = lastPos + 1;
+          ii.widthFactor = mAdapter.getPageWidth(ii.position);
+          i--;
+        }
       }
       offset = ii.offset;
       final float leftBound = offset;
@@ -1951,12 +1981,15 @@ public class CircularViewPager extends ViewGroup {
       final float truncator = currentPage >= mCurItem ? 0.4f : 0.6f;
       targetPage = (int) (currentPage + pageOffset + truncator);
     }
-    if (mItems.size() > 0) {
-      final ItemInfo firstItem = mItems.get(0);
-      final ItemInfo lastItem = mItems.get(mItems.size() - 1);
-      // Only let the user target pages we have items for
-      targetPage = Math.max(firstItem.position, Math.min(targetPage, lastItem.position));
+
+    final int itemCount = mAdapter.getCount();
+    if(mCurItem == 0 && targetPage == 0) {
+      targetPage = itemCount - 1;
     }
+    else if(targetPage >= itemCount) {
+      targetPage = targetPage - itemCount;
+    }
+
     return targetPage;
   }
   @Override
@@ -1964,7 +1997,7 @@ public class CircularViewPager extends ViewGroup {
     super.draw(canvas);
     boolean needsInvalidate = false;
     final int overScrollMode = ViewCompat.getOverScrollMode(this);
-    if (overScrollMode == ViewCompat.OVER_SCROLL_ALWAYS ||
+    if (mAdapter.getCount() == 1 || overScrollMode == ViewCompat.OVER_SCROLL_ALWAYS ||
         (overScrollMode == ViewCompat.OVER_SCROLL_IF_CONTENT_SCROLLS &&
             mAdapter != null && mAdapter.getCount() > 1)) {
       if (!mLeftEdge.isFinished()) {

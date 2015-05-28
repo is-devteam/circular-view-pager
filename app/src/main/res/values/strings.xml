@@ -4,4 +4,10 @@
   <string name="hello_world">Hello world!</string>
   <string name="action_settings">Settings</string>
   <string name="current_page_indicator">We are currently on page %d</string>
+  <string name="insert_page_button">Insert Page</string>
+  <string name="remove_page_button">Remove Page</string>
+  <string name="goto_page_button">Go to Page</string>
+  <string name="reset_button">Reset (new size)</string>
+  <string name="invalid_index_toast">%s is not a valid index</string>
+  <string name="adapter_size_error">New size must be greater than 0</string>
 </resources>
