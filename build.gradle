@@ -17,3 +17,25 @@ allprojects {
     jcenter()
   }
 }
+
+beforeEvaluate { project ->
+  mergeLocalProperties(project)
+}
+
+allprojects { project ->
+  beforeEvaluate {
+    mergeLocalProperties(project)
+  }
+}
+
+def mergeLocalProperties(project) {
+  File localPropertiesFiles = project.file("local.properties")
+  System.console().println(localPropertiesFiles.getAbsolutePath())
+  if(localPropertiesFiles.exists()) {
+    Properties localProperties = new Properties()
+    localProperties.load(new FileInputStream(localPropertiesFiles))
+    for(String key : localProperties.propertyNames()) {
+      project.ext.set(key, localProperties.getProperty(key))
+    }
+  }
+}
