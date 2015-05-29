@@ -10,6 +10,8 @@ Use the following in your layout instead of `ViewPager`:
     android:layout_height="match_parent">
 ```
 
+Also, use `CircularViewPager.*` for nested classes instead of `ViewPager.*` (eg `CircularViewPager.OnPageChangeListener` instead of `ViewPager.OnPageChangeListener`).
+
 ## Gradle
 
         compile 'com.isapp.android:circular-view-pager:0.0.2-SNAPSHOT'
