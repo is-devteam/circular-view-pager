@@ -827,6 +827,10 @@ public class CircularViewPager extends ViewGroup {
     populate(mCurItem);
   }
   void populate(int newCurrentItem) {
+    if (mAdapter == null) {
+      sortChildDrawingOrder();
+      return;
+    }
     final int N = mAdapter.getCount();
     ItemInfo oldCurInfo = null;
     int focusDirection = View.FOCUS_FORWARD;
@@ -834,10 +838,6 @@ public class CircularViewPager extends ViewGroup {
       focusDirection = mCurItem < newCurrentItem ? View.FOCUS_RIGHT : View.FOCUS_LEFT;
       oldCurInfo = infoForPosition(mCurItem);
       mCurItem = newCurrentItem;
-    }
-    if (mAdapter == null) {
-      sortChildDrawingOrder();
-      return;
     }
     // Bail now if we are waiting to populate.  This is to hold off
     // on creating views from the time the user releases their finger to
