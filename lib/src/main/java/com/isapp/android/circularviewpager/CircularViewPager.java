@@ -1997,7 +1997,7 @@ public class CircularViewPager extends ViewGroup {
     super.draw(canvas);
     boolean needsInvalidate = false;
     final int overScrollMode = ViewCompat.getOverScrollMode(this);
-    if (mAdapter.getCount() == 1 || overScrollMode == ViewCompat.OVER_SCROLL_ALWAYS ||
+    if ((mAdapter != null && mAdapter.getCount() == 1) || overScrollMode == ViewCompat.OVER_SCROLL_ALWAYS ||
         (overScrollMode == ViewCompat.OVER_SCROLL_IF_CONTENT_SCROLLS &&
             mAdapter != null && mAdapter.getCount() > 1)) {
       if (!mLeftEdge.isFinished()) {
