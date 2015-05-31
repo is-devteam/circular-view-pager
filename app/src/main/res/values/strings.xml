@@ -8,6 +8,8 @@
   <string name="remove_page_button">Remove Page</string>
   <string name="goto_page_button">Go to Page</string>
   <string name="reset_button">Reset (new size)</string>
+  <string name="offscreen_page_limit_button">New Offscreen Page Limit</string>
   <string name="invalid_index_toast">%s is not a valid index</string>
   <string name="adapter_size_error">New size must be greater than 0</string>
+  <string name="offscreen_page_limit_error">New offscreen page limit must be greater than 0</string>
 </resources>

@@ -91,11 +91,32 @@
         android:text="@string/reset_button"/>
   </LinearLayout>
 
+  <LinearLayout
+      android:id="@+id/offscreen_page_limit_container"
+      android:layout_width="match_parent"
+      android:layout_height="wrap_content"
+      android:layout_below="@+id/reset_container"
+      android:orientation="horizontal">
+
+    <EditText
+        android:id="@+id/offscreen_page_limit"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:inputType="numberDecimal"/>
+
+    <Button
+        android:id="@+id/offscreen_page_limit_button"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/offscreen_page_limit_button"/>
+  </LinearLayout>
+
   <TextView
     android:id="@+id/current_page"
     android:layout_width="wrap_content"
     android:layout_height="wrap_content"
-    android:layout_below="@+id/reset_container"
+    android:layout_below="@+id/offscreen_page_limit_container"
     tools:text="@string/current_page_indicator"/>
 
   <com.isapp.android.circularviewpager.CircularViewPager

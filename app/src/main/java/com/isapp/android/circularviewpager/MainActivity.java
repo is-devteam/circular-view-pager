@@ -22,6 +22,7 @@ import java.util.List;
 public class MainActivity extends FragmentActivity {
   public static final int INVALID_INDEX = -1;
   public static final int DEFAULT_SIZE = 10;
+  public static final int DEFAULT_OFFSCREEN_PAGE_LIMIT = 1;
 
   private CircularViewPager circularViewPager;
   private TextView currentPositionView;
@@ -38,6 +39,9 @@ public class MainActivity extends FragmentActivity {
   private EditText resetSizeView;
   private Button resetButton;
 
+  private EditText offscreenPageLimitView;
+  private Button offscreenPageLimitButton;
+
   private Toast toast;
 
   @Override
@@ -46,6 +50,7 @@ public class MainActivity extends FragmentActivity {
     setContentView(R.layout.activity_main);
 
     circularViewPager = (CircularViewPager) findViewById(R.id.circular_view_pager);
+    circularViewPager.setOffscreenPageLimit(DEFAULT_OFFSCREEN_PAGE_LIMIT);
     circularViewPager.setAdapter(new Adapter(DEFAULT_SIZE));
 
     circularViewPager.setCurrentItem(0);
@@ -80,6 +85,10 @@ public class MainActivity extends FragmentActivity {
     resetSizeView = (EditText) findViewById(R.id.reset_size);
     resetSizeView.setText(Integer.toString(DEFAULT_SIZE));
     resetButton = (Button) findViewById(R.id.reset_button);
+
+    offscreenPageLimitView = (EditText) findViewById(R.id.offscreen_page_limit);
+    offscreenPageLimitView.setText(Integer.toString(DEFAULT_OFFSCREEN_PAGE_LIMIT));
+    offscreenPageLimitButton = (Button) findViewById(R.id.offscreen_page_limit_button);
 
     insertPageButton.setOnClickListener(new View.OnClickListener() {
       @Override
@@ -138,6 +147,27 @@ public class MainActivity extends FragmentActivity {
         else {
           circularViewPager.setAdapter(new Adapter(size));
           setCurrentPositionText(0);
+        }
+      }
+    });
+
+    offscreenPageLimitButton.setOnClickListener(new View.OnClickListener() {
+      @Override
+      public void onClick(View v) {
+        dismissKeyboard(v);
+
+        String limitStr = offscreenPageLimitView.getText().toString();
+        int limit = 0;
+        try {limit = Integer.parseInt(limitStr);}catch(NumberFormatException ignore) {}
+        if(limit <= 0) {
+          if(toast != null) {
+            toast.cancel();
+          }
+          toast = Toast.makeText(MainActivity.this, R.string.offscreen_page_limit_error, Toast.LENGTH_SHORT);
+          toast.show();
+        }
+        else {
+          circularViewPager.setOffscreenPageLimit(limit);
         }
       }
     });
