@@ -103,6 +103,8 @@ public class CircularViewPager extends ViewGroup {
   private static final int MIN_DISTANCE_FOR_FLING = 25; // dips
   private static final int DEFAULT_GUTTER_SIZE = 16; // dips
   private static final int MIN_FLING_VELOCITY = 400; // dips
+  private static final int ITEM_CHANGE_DIRECTION_LEFT = -1;
+  private static final int ITEM_CHANGE_DIRECTION_RIGHT = 1;
   private static final int[] LAYOUT_ATTRS = new int[] {
       android.R.attr.layout_gravity
   };
@@ -149,6 +151,8 @@ public class CircularViewPager extends ViewGroup {
   // or end of the pager data set during touch scrolling.
   private float mFirstOffset = -Float.MAX_VALUE;
   private float mLastOffset = Float.MAX_VALUE;
+  // the most recent direction we needed to go in to find the new item
+  private int mMostRecentItemChangeDirection = ITEM_CHANGE_DIRECTION_LEFT;
   private int mChildWidthMeasureSpec;
   private int mChildHeightMeasureSpec;
   private boolean mInLayout;
@@ -856,8 +860,8 @@ public class CircularViewPager extends ViewGroup {
     }
     mAdapter.startUpdate(this);
     final int pageLimit = mOffscreenPageLimit;
-    final int startPos = mCurItem - pageLimit < 0 ? Math.max(0, N + (mCurItem - pageLimit)) : Math.max(0, mCurItem - pageLimit);
-    final int endPos = mCurItem + pageLimit >= N ? Math.min(N-1, (mCurItem + pageLimit) - N) : Math.min(N-1, mCurItem + pageLimit);
+    final int startPos = mCurItem - pageLimit < 0 ? Math.max(0, N + (mCurItem - pageLimit)) : mCurItem - pageLimit;
+    final int endPos = mCurItem + pageLimit >= N ? Math.min(N-1, (mCurItem + pageLimit) - N) : mCurItem + pageLimit;
     final int windowSize = pageLimit * 2 + 1;
     if (N != mExpectedAdapterCount) {
       String resName;
@@ -874,14 +878,23 @@ public class CircularViewPager extends ViewGroup {
           " Problematic adapter: " + mAdapter.getClass());
     }
     // Locate the currently focused item or add it if needed.
+    // This assumes that there will never be more than 2 ItemInfos with the same position in mItems
     int curIndex = -1;
+    int foundIndex = -1;
     ItemInfo curItem = null;
     for (curIndex = 0; curIndex < mItems.size(); curIndex++) {
       final ItemInfo ii = mItems.get(curIndex);
       if (ii.position == mCurItem) {
+        final boolean itemWasFoundBefore = curItem != null;
         curItem = ii;
-        break;
+        foundIndex = curIndex;
+        if(mMostRecentItemChangeDirection == ITEM_CHANGE_DIRECTION_LEFT || itemWasFoundBefore) {
+          break;
+        }
       }
+    }
+    if(foundIndex != -1) {
+      curIndex = foundIndex;
     }
     if (curItem == null && N > 0) {
       curItem = addNewItem(mCurItem, curIndex);
@@ -1808,6 +1821,7 @@ public class CircularViewPager extends ViewGroup {
           if (DEBUG) Log.v(TAG, "Moved x to " + x + "," + y + " diff=" + xDiff + "," + yDiff);
           if (xDiff > mTouchSlop && xDiff > yDiff) {
             if (DEBUG) Log.v(TAG, "Starting drag!");
+            mMostRecentItemChangeDirection = x > mLastMotionX ? ITEM_CHANGE_DIRECTION_LEFT : ITEM_CHANGE_DIRECTION_RIGHT;
             mIsBeingDragged = true;
             requestParentDisallowInterceptTouchEvent(true);
             mLastMotionX = x - mInitialMotionX > 0 ? mInitialMotionX + mTouchSlop :
