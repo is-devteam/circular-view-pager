@@ -99,7 +99,7 @@ public class MainActivity extends FragmentActivity {
       public void onClick(View v) {
         dismissKeyboard(v);
 
-        String indexStr = insertPageIndexView.getText().toString();
+        String indexStr = removePageIndexView.getText().toString();
         int index = parseIndexString(indexStr);
         if(index != INVALID_INDEX) {
           ((Adapter) circularViewPager.getAdapter()).removeFrom(index);
